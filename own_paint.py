@@ -8,14 +8,37 @@ from shapes.line import Line
 from shapes.circle import Circle
 from shapes.rectangle import Rectangle
 from shapes.triangle import Triangle
-def pairwise(iterable):
-    a = iter(iterable)
-    return zip(a, a)
+from shapes.point import Point
+
+
+def only_numbers_between_0_and_1000(char, whole_number):
+    digit = char.isdigit()
+    if not digit:
+        return digit
+    return 1000 > int(whole_number) >= 0
+
+def select_shape(canvas, shape, shape_type):
+    tags = canvas.gettags(shape)
+
+    if tags[0] != 'line':
+        canvas.itemconfig(shape, outline='red', width=5)
+    else:
+        canvas.itemconfig(shape, fill='red')
+
+def unselect_shape(canvas, shape, shape_type, color):
+    tags = canvas.gettags(shape)
+
+    if tags[0] != 'line':
+        canvas.itemconfig(shape, outline='')
+    else:
+        canvas.itemconfig(shape, fill=color)
+
 
 def find_closest_point(main_point_x, main_point_y, array_of_points):
     local_max = sys.maxsize
     index_min = 0
-    for index in range(0, len(array_of_points), 2):
+    for index in range(0, int(len(array_of_points)), 2):
+        print('twoj index', index)
         x = array_of_points[index]
         y = array_of_points[index + 1]
         distance_between = math.sqrt(math.pow(x - main_point_x, 2) + math.pow(y - main_point_y, 2))
@@ -43,17 +66,17 @@ class Paint(object):
         self.doing = None
         self.root = Tk()
         self.shapes = []
-        self.pen_button = Button(self.root, text='line', command=self.use_pen)
-        self.pen_button.grid(row=0, column=0)
+        self.shape_line = Button(self.root, text='line', command=self.use_pen)
+        self.shape_line.grid(row=0, column=0)
 
-        self.brush_button = Button(self.root, text='circle', command=self.use_brush)
-        self.brush_button.grid(row=0, column=1)
+        self.shape_circle = Button(self.root, text='circle', command=self.use_brush)
+        self.shape_circle.grid(row=0, column=1)
 
-        self.eraser_button = Button(self.root, text='triangle', command=self.use_eraser)
-        self.eraser_button.grid(row=0, column=2)
+        self.shape_triangle = Button(self.root, text='triangle', command=self.use_eraser)
+        self.shape_triangle.grid(row=0, column=2)
 
-        self.rectangle = Button(self.root, text='rectangle', command=self.rectangle_shape)
-        self.rectangle.grid(row=0, column=3)
+        self.shape_rectangle = Button(self.root, text='rectangle', command=self.rectangle_shape)
+        self.shape_rectangle.grid(row=0, column=3)
 
         self.color_button = Button(self.root, text='color', command=self.choose_color)
         self.color_button.grid(row=0, column=4)
@@ -68,22 +91,36 @@ class Paint(object):
         self.choose_size_button.grid(row=0, column=7)
 
         self.c = Canvas(self.root, bg='white', width=600, height=600)
-        self.c.grid(row=1, rowspan=2, column=0, columnspan=10)
+        self.c.grid(row=1, rowspan=6, column=0, columnspan=10)
 
         self.label = Label(self.root, text="First x")
         self.label.grid(row=0, rowspan=2,  column=11)
 
-        self.inputing = Entry(self.root)
-        self.inputing.grid(row=1, column=11)
+        validation = self.root.register(only_numbers_between_0_and_1000)
+
+        self.inputing_first_x = Entry(self.root, validate="all", validatecommand=(validation, '%S', '%P'))
+        self.inputing_first_x.grid(row=1, column=11)
 
         self.second_label = Label(self.root, text="First y")
-        self.second_label.grid(row=0, rowspan=2,  column=13)
+        self.second_label.grid(row=0, rowspan=2,  column=12)
 
-        self.second_inputing = Entry(self.root)
-        self.second_inputing.grid(row=1, column=13)
+        self.inputing_first_y = Entry(self.root, validate="key", validatecommand=(validation, '%S', '%P'))
+        self.inputing_first_y.grid(row=1, column=12)
 
-        self.saving = Button(self.root, text='Save')
-        self.saving.grid(row=1, column=14)
+        self.label = Label(self.root, text="Second x")
+        self.label.grid(row=1, rowspan=2,  column=11)
+
+        self.inputing_second_x = Entry(self.root, validate="key", validatecommand=(validation, '%S', '%P'))
+        self.inputing_second_x.grid(row=2, column=11)
+
+        self.second_label = Label(self.root, text="Second y")
+        self.second_label.grid(row=1, rowspan=2, column=12)
+
+        self.inputing_second_y = Entry(self.root, validate="key", validatecommand=(validation, '%S', '%P'))
+        self.inputing_second_y.grid(row=2, column=12)
+
+        self.saving = Button(self.root, text='Save', command=self.create_shape)
+        self.saving.grid(row=2, column=13)
 
         self.c.selected = None
         self.c.dot = None
@@ -99,7 +136,7 @@ class Paint(object):
         self.line_width = self.choose_size_button.get()
         self.color = self.DEFAULT_COLOR
         self.eraser_on = False
-        self.active_button = self.pen_button
+        self.active_button = self.shape_line
         self.c.bind('<Return>', self.asdf)
 
         self.c.bind('<Button-1>', self.paint)
@@ -111,13 +148,13 @@ class Paint(object):
         self.c.bind('<Control-s>', self.save)
 
     def use_pen(self):
-        self.activate_button(self.pen_button)
+        self.activate_button(self.shape_line)
         self.choice = 'line'
         self.choice2 = Line()
         self.stop_preview()
 
     def use_brush(self):
-        self.activate_button(self.brush_button)
+        self.activate_button(self.shape_circle)
         self.choice = 'circle'
         self.choice2 = Circle()
         self.stop_preview()
@@ -130,13 +167,13 @@ class Paint(object):
 
 
     def use_eraser(self):
-        self.activate_button(self.eraser_button)
+        self.activate_button(self.shape_triangle)
         self.choice = 'triangle'
         self.choice2 = Triangle()
         self.stop_preview()
 
     def rectangle_shape(self):
-        self.activate_button(self.rectangle)
+        self.activate_button(self.shape_rectangle)
         self.choice = 'rectangle'
         self.choice2 = Rectangle()
         self.stop_preview()
@@ -156,12 +193,18 @@ class Paint(object):
         self.choice = 'scale'
         self.stop_preview()
 
-    def paint(self, event):
+    def create_shape(self):
+        # print(self.inputing)
+        # print(self.second_inputing)
+        first_point = Point(int(self.inputing_first_x.get()), int(self.inputing_first_y.get()))
+        second_point = Point(int(self.inputing_second_x.get()), int(self.inputing_second_y.get()))
+        if self.choice2:
+            self.choice2.create(self.c, first_point.x, first_point.y, second_point.x, second_point.y,
+                                 fill=self.color, width=self.line_width)
 
+    def paint(self, event):
         self.line_width = self.choose_size_button.get()
-        paint_color = self.color
-        self.click_x = event.x
-        self.click_y = event.y
+
         if self.choice in ['line', 'circle', 'rectangle']:
             if not self.first:
                 self.first_x = event.x
@@ -169,7 +212,7 @@ class Paint(object):
                 self.first = True
             else:
                 self.shapes.append(self.choice2.create(self.c, self.first_x, self.first_y, event.x, event.y,
-                                    fill=paint_color, width=self.line_width))
+                                    fill=self.color, width=self.line_width, tags=self.choice2.type))
                 self.first = False
         if self.choice == 'triangle':
             if not self.first:
@@ -180,16 +223,15 @@ class Paint(object):
                 self.second_x = event.x
                 self.second_y = event.y
                 self.doing = self.c.create_line(self.first_x, self.first_y, self.second_x, self.second_y,
-                                                      width=self.line_width, fill=paint_color,
+                                                      width=self.line_width, fill=self.color,
                                                       capstyle=ROUND, smooth=TRUE, splinesteps=36)
                 self.second = True
             else:
                 self.c.create_polygon(self.first_x, self.first_y, self.second_x, self.second_y, event.x, event.y,
-                                      fill=paint_color)
+                                      fill=self.color, tags=self.choice2.type)
                 self.second = False
                 self.first = False
 
-        # print(self.choice)
         if self.choice in ['move', 'scale']:
             self.on_click(event)
         else:
@@ -198,11 +240,20 @@ class Paint(object):
 
     def on_click(self, event):
         self.selected = self.c.find_overlapping(event.x - 10, event.y - 10, event.x + 10, event.y + 10)
+        print('zaznaczone', self.selected)
         if self.selected:
-            self.c.selected = self.selected[-1]  # select the top-most item
+            if self.c.selected:
+                unselect_shape(self.c, self.c.selected, self.choice2, self.color)
+                self.c.selected = None
+            self.c.selected = self.selected[-1]
+            select_shape(self.c, self.c.selected, self.choice2)
+
+            # if self.c.selected
             self.c.startxy = (event.x, event.y)
         else:
-            self.c.selected = None
+            if self.c.selected:
+                unselect_shape(self.c, self.c.selected, self.choice2, self.color)
+                self.c.selected = None
 
     def on_drag(self, event):
         if self.choice == 'move':
@@ -213,21 +264,12 @@ class Paint(object):
         if self.choice == 'scale':
             if self.c.selected:
                 coords = self.c.coords(self.c.selected)
-                print('ilosc', len(coords))
-                print(coords)
-                coords_of_point = self.c.coords(self.c.dot)
-                x, c, ll = find_closest_point(coords_of_point[0], coords_of_point[1], coords)
-                number_of_coords = [a for a in range(int(len(coords) / 2))]
-                index_of_closest_point = number_of_coords.index(ll)
-                del number_of_coords[index_of_closest_point]
-                array_for_scaling = []
-                for point in number_of_coords:
-                        array_for_scaling.append(coords[point])
-                        array_for_scaling.append(coords[point + 1])
-                array_for_scaling.append(event.x)
-                array_for_scaling.append(event.y)
-                self.c.coords(self.selected, array_for_scaling)
-                # self.c.delete(self.dot)
+                tags = self.c.gettags('dot')
+                print(self.c.coords(tags))
+                closest = self.c.find_closest(event.x, event.y)
+                print('twoj punkt', tags)
+                print('najblizej', closest)
+                self.c.coords(self.selected, event.x, event.y, coords[0], coords[1])
 
     def motion(self, event):
         if self.c.dot:
@@ -249,19 +291,15 @@ class Paint(object):
         elif self.choice == 'scale':
             if self.c.selected:
                 coords = self.c.coords(self.c.selected)
+                print("koordy", coords)
                 point = find_closest_point(event.x, event.y, coords)
-                self.c.dot = self.c.create_oval(point[0], point[1], point[0]+5, point[1]+5, fill='#ff0000')
-                # breakpoint()
-                # coords = self.c.coords(self.c.selected)
-                # event.x event.y
+                print("punkt", point)
         else:
             if self.first:
                 self.previews.append(self.choice2.create(self.c, self.first_x, self.first_y, event.x, event.y,
                                                          fill=self.color))
 
         self.c.focus_set()
-
-
 
     def stop_preview(self):
         for preview in self.previews:
