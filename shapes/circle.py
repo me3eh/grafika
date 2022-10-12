@@ -6,7 +6,7 @@ class Circle:
         self.type = 'circle'
     def create(self, canvas, first_x, first_y, last_x, last_y, **kwargs):
         r = self.length_between_points(first_x, first_y, last_x, last_y)
-        self.shape = canvas.create_oval(first_x - r, first_y - r, first_x + r, first_y + r, **kwargs)
+        self.shape = canvas.create_oval(first_x - r, first_y - r, first_x + r, first_y + r, tags="circle", **kwargs)
         return self.shape
 
     def length_between_points(self, x1, y1, x2, y2):

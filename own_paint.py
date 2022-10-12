@@ -1,5 +1,6 @@
 from tkinter import *
 from tkinter.colorchooser import askcolor
+from tkinter import filedialog as fd
 import math
 import json
 import sys
@@ -17,13 +18,41 @@ def only_numbers_between_0_and_1000(char, whole_number):
         return digit
     return 1000 > int(whole_number) >= 0
 
+
 def select_shape(canvas, shape, shape_type):
     tags = canvas.gettags(shape)
 
-    if tags[0] != 'line':
-        canvas.itemconfig(shape, outline='red', width=5)
-    else:
+    if tags[0] == 'line':
         canvas.itemconfig(shape, fill='red')
+    else:
+        canvas.itemconfig(shape, outline='red', width=5)
+
+def deserialize(self, file_inside):
+    for shape in self.shapes:
+        self.c.delete(shape)
+    self.shapes.clear()
+
+    array_full_of_shapes = eval(file_inside)
+    for shape in array_full_of_shapes:
+        if list(shape.keys())[0] == 'line':
+            print(list(shape.values()))
+            print(len(list(shape.values())[0]))
+            self.shapes.append(Line().create(self.c, list(shape.values())[0][0], list(shape.values())[0][1],
+                          list(shape.values())[0][2], list(shape.values())[0][3]))
+        # if list(shape.keys()) == 'circle':
+            # Circle().create
+        # self.shapes.append()
+    # shapes_in_json = []
+    # for f in self.shapes:
+    #     shapes_in_json.append({ self.c.gettags(f)[0]: self.c.coords(f)})
+    #     shapes_in_json[self.c.gettags(f)[0]] = self.c.coords(f)
+    # return shapes_in_json
+
+def serialize(self):
+    shapes_in_json = []
+    for f in self.shapes:
+        shapes_in_json.append({ self.c.gettags(f)[0]: self.c.coords(f)})
+    return shapes_in_json
 
 def unselect_shape(canvas, shape, shape_type, color):
     tags = canvas.gettags(shape)
@@ -35,24 +64,26 @@ def unselect_shape(canvas, shape, shape_type, color):
 
 
 def find_closest_point(main_point_x, main_point_y, array_of_points):
+    if len(array_of_points) == 0:
+        return None
+
     local_max = sys.maxsize
     index_min = 0
+
     for index in range(0, int(len(array_of_points)), 2):
-        print('twoj index', index)
         x = array_of_points[index]
         y = array_of_points[index + 1]
         distance_between = math.sqrt(math.pow(x - main_point_x, 2) + math.pow(y - main_point_y, 2))
-        if distance_between <= local_max:
+        if distance_between < local_max:
             local_max = distance_between
             index_min = index
-    if len(array_of_points) == 0:
-        return array_of_points[index_min]
+    # if len(array_of_points) == 0:
+    #     return array_of_points[index_min]
 
-    return (array_of_points[index_min], array_of_points[index_min + 1], index_min)
+    return index_min
 
 
 class Paint(object):
-
     DEFAULT_PEN_SIZE = 5.0
     DEFAULT_COLOR = 'black'
 
@@ -60,19 +91,20 @@ class Paint(object):
         self.choice2 = None
         self.selected = None
         self.preview = None
-        self.first = False
+        self.first_clicked_point = None
+        self.second_clicked_point = None
         self.second = False
         self.previews = []
         self.doing = None
         self.root = Tk()
         self.shapes = []
-        self.shape_line = Button(self.root, text='line', command=self.use_pen)
+        self.shape_line = Button(self.root, text='line', command=self.line_shape)
         self.shape_line.grid(row=0, column=0)
 
-        self.shape_circle = Button(self.root, text='circle', command=self.use_brush)
+        self.shape_circle = Button(self.root, text='circle', command=self.circle_shape)
         self.shape_circle.grid(row=0, column=1)
 
-        self.shape_triangle = Button(self.root, text='triangle', command=self.use_eraser)
+        self.shape_triangle = Button(self.root, text='triangle', command=self.triangle_shape)
         self.shape_triangle.grid(row=0, column=2)
 
         self.shape_rectangle = Button(self.root, text='rectangle', command=self.rectangle_shape)
@@ -94,7 +126,7 @@ class Paint(object):
         self.c.grid(row=1, rowspan=6, column=0, columnspan=10)
 
         self.label = Label(self.root, text="First x")
-        self.label.grid(row=0, rowspan=2,  column=11)
+        self.label.grid(row=0, rowspan=2, column=11)
 
         validation = self.root.register(only_numbers_between_0_and_1000)
 
@@ -102,13 +134,13 @@ class Paint(object):
         self.inputing_first_x.grid(row=1, column=11)
 
         self.second_label = Label(self.root, text="First y")
-        self.second_label.grid(row=0, rowspan=2,  column=12)
+        self.second_label.grid(row=0, rowspan=2, column=12)
 
         self.inputing_first_y = Entry(self.root, validate="key", validatecommand=(validation, '%S', '%P'))
         self.inputing_first_y.grid(row=1, column=12)
 
         self.label = Label(self.root, text="Second x")
-        self.label.grid(row=1, rowspan=2,  column=11)
+        self.label.grid(row=1, rowspan=2, column=11)
 
         self.inputing_second_x = Entry(self.root, validate="key", validatecommand=(validation, '%S', '%P'))
         self.inputing_second_x.grid(row=2, column=11)
@@ -122,6 +154,12 @@ class Paint(object):
         self.saving = Button(self.root, text='Save', command=self.create_shape)
         self.saving.grid(row=2, column=13)
 
+        self.opening_file = Button(self.root, text='Open file', command=self.open_file)
+        self.opening_file.grid(row=4, column=11, columnspan=2)
+
+        self.saving_file = Button(self.root, text='Save file', command=self.save_file)
+        self.saving_file.grid(row=4, column=12)
+
         self.c.selected = None
         self.c.dot = None
 
@@ -130,43 +168,35 @@ class Paint(object):
 
     def setup(self):
         self.choice = None
-                           # width=self.line_width, fill=paint_color, capstyle=ROUND, smooth=TRUE, splinesteps=36)
-        self.old_x = None
-        self.old_y = None
         self.line_width = self.choose_size_button.get()
         self.color = self.DEFAULT_COLOR
-        self.eraser_on = False
         self.active_button = self.shape_line
         self.c.bind('<Return>', self.asdf)
 
         self.c.bind('<Button-1>', self.paint)
         # self.c.bind('<Button-1>', self.on_click)
         self.c.bind('<Button-3>', self.stop_preview)
-        self.c.bind('<ButtonRelease-1>', self.reset)
         self.c.bind('<Motion>', self.motion)
         self.c.bind('<B1-Motion>', self.on_drag)
         self.c.bind('<Control-s>', self.save)
 
-    def use_pen(self):
+    def line_shape(self):
         self.activate_button(self.shape_line)
         self.choice = 'line'
         self.choice2 = Line()
         self.stop_preview()
 
-    def use_brush(self):
+    def circle_shape(self):
         self.activate_button(self.shape_circle)
         self.choice = 'circle'
         self.choice2 = Circle()
         self.stop_preview()
 
-
     def choose_color(self):
-        self.eraser_on = False
         self.color = askcolor(color=self.color)[1]
         self.stop_preview()
 
-
-    def use_eraser(self):
+    def triangle_shape(self):
         self.activate_button(self.shape_triangle)
         self.choice = 'triangle'
         self.choice2 = Triangle()
@@ -194,43 +224,54 @@ class Paint(object):
         self.stop_preview()
 
     def create_shape(self):
-        # print(self.inputing)
-        # print(self.second_inputing)
         first_point = Point(int(self.inputing_first_x.get()), int(self.inputing_first_y.get()))
         second_point = Point(int(self.inputing_second_x.get()), int(self.inputing_second_y.get()))
         if self.choice2:
-            self.choice2.create(self.c, first_point.x, first_point.y, second_point.x, second_point.y,
-                                 fill=self.color, width=self.line_width)
+            self.shapes.append(self.choice2.create(self.c, first_point.x, first_point.y, second_point.x, second_point.y,
+                                fill=self.color, width=self.line_width))
+    def open_file(self):
+        # print("yas")
+        print(serialize(self))
+
+        filename = fd.askopenfilename(filetypes=[("Plik tekstowy", "*.canvas")])  # wywołanie okna dialogowego open file
+        if filename:
+            with open(filename, "r", -1, "utf-8") as file:
+                deserialize(self, file.read())
+                # file.read(serialize(self))
+
+
+    def save_file(self):
+        filename = fd.asksaveasfilename(filetypes=[("Plik tekstowy", "*.canvas")], defaultextension="*.canvas")
+        print(serialize(self))
+        if filename:
+            with open(filename, "w", -1, "utf-8") as file:
+                file.write(repr(serialize(self)))
 
     def paint(self, event):
         self.line_width = self.choose_size_button.get()
 
         if self.choice in ['line', 'circle', 'rectangle']:
-            if not self.first:
-                self.first_x = event.x
-                self.first_y = event.y
-                self.first = True
+            if not self.first_clicked_point:
+                self.first_clicked_point = Point(event.x, event.y)
             else:
-                self.shapes.append(self.choice2.create(self.c, self.first_x, self.first_y, event.x, event.y,
-                                    fill=self.color, width=self.line_width, tags=self.choice2.type))
-                self.first = False
+                self.shapes.append(self.choice2.create(self.c, self.first_clicked_point.x, self.first_clicked_point.y,
+                                                       event.x, event.y, fill=self.color, width=self.line_width))
+                self.first_clicked_point = None
         if self.choice == 'triangle':
-            if not self.first:
-                self.first_x = event.x
-                self.first_y = event.y
-                self.first = True
-            elif not self.second:
-                self.second_x = event.x
-                self.second_y = event.y
-                self.doing = self.c.create_line(self.first_x, self.first_y, self.second_x, self.second_y,
-                                                      width=self.line_width, fill=self.color,
-                                                      capstyle=ROUND, smooth=TRUE, splinesteps=36)
-                self.second = True
+            if not self.first_clicked_point:
+                self.first_clicked_point = Point(event.x, event.y)
+            elif not self.second_clicked_point:
+                self.second_clicked_point = Point(event.x, event.y)
+                self.doing = self.c.create_line(self.first_clicked_point.x, self.first_clicked_point.y,
+                                                self.second_clicked_point.x, self.second_clicked_point.y,
+                                                width=self.line_width, fill=self.color, capstyle=ROUND, smooth=TRUE,
+                                                splinesteps=36)
             else:
-                self.c.create_polygon(self.first_x, self.first_y, self.second_x, self.second_y, event.x, event.y,
-                                      fill=self.color, tags=self.choice2.type)
-                self.second = False
-                self.first = False
+                self.shapes.append(self.c.create_polygon(self.first_clicked_point.x, self.first_clicked_point.y,
+                                                         self.second_clicked_point.x, self.second_clicked_point.y,
+                                                         event.x, event.y, tags='triangle', fill=self.color))
+                self.second_clicked_point = None
+                self.first_clicked_point = None
 
         if self.choice in ['move', 'scale']:
             self.on_click(event)
@@ -240,7 +281,6 @@ class Paint(object):
 
     def on_click(self, event):
         self.selected = self.c.find_overlapping(event.x - 10, event.y - 10, event.x + 10, event.y + 10)
-        print('zaznaczone', self.selected)
         if self.selected:
             if self.c.selected:
                 unselect_shape(self.c, self.c.selected, self.choice2, self.color)
@@ -248,7 +288,6 @@ class Paint(object):
             self.c.selected = self.selected[-1]
             select_shape(self.c, self.c.selected, self.choice2)
 
-            # if self.c.selected
             self.c.startxy = (event.x, event.y)
         else:
             if self.c.selected:
@@ -264,12 +303,17 @@ class Paint(object):
         if self.choice == 'scale':
             if self.c.selected:
                 coords = self.c.coords(self.c.selected)
-                tags = self.c.gettags('dot')
-                print(self.c.coords(tags))
-                closest = self.c.find_closest(event.x, event.y)
-                print('twoj punkt', tags)
-                print('najblizej', closest)
-                self.c.coords(self.selected, event.x, event.y, coords[0], coords[1])
+                point = find_closest_point(event.x, event.y, coords)
+                if point != None:
+                    other_points_than_closest = [a for a in range(int(len(coords) / 2))]
+                    other_points_than_closest.pop(int(point / 2))
+                    shape = []
+                    for points in other_points_than_closest:
+                        shape.append(coords[points * 2])
+                        shape.append(coords[points * 2 + 1])
+                    shape.append(event.x)
+                    shape.append(event.y)
+                    self.c.coords(self.c.selected, *shape)
 
     def motion(self, event):
         if self.c.dot:
@@ -279,25 +323,23 @@ class Paint(object):
                 self.c.delete(preview)
             self.previews.clear()
         if self.choice == 'triangle':
-            if not self.first:
+            if not self.first_clicked_point:
                 if self.doing:
                     self.c.delete(self.doing)
-            if self.first:
-                self.previews.append(Line().create(self.c, self.first_x, self.first_y, event.x, event.y,
-                                    fill=self.color))
-            if self.second:
-                self.previews.append(Line().create(self.c, self.second_x, self.second_y, event.x, event.y,
-                                             fill=self.color))
-        elif self.choice == 'scale':
-            if self.c.selected:
-                coords = self.c.coords(self.c.selected)
-                print("koordy", coords)
-                point = find_closest_point(event.x, event.y, coords)
-                print("punkt", point)
+            if self.first_clicked_point:
+                self.previews.append(Line().create(self.c, self.first_clicked_point.x,
+                                                   self.first_clicked_point.y, event.x, event.y, fill=self.color))
+            if self.second_clicked_point:
+                self.previews.append(Line().create(self.c, self.second_clicked_point.x, self.second_clicked_point.y,
+                                                   event.x, event.y, fill=self.color))
+        # elif self.choice == 'scale':
+        # if self.c.selected:
+        #     coords = self.c.coords(self.c.selected)
+        # point = find_closest_point(event.x, event.y, coords)
         else:
-            if self.first:
-                self.previews.append(self.choice2.create(self.c, self.first_x, self.first_y, event.x, event.y,
-                                                         fill=self.color))
+            if self.first_clicked_point:
+                self.previews.append(self.choice2.create(self.c, self.first_clicked_point.x, self.first_clicked_point.y,
+                                                         event.x, event.y, fill=self.color))
 
         self.c.focus_set()
 
@@ -305,19 +347,17 @@ class Paint(object):
         for preview in self.previews:
             self.c.delete(preview)
         self.c.delete(self.doing)
-        self.first = False
-        self.second = False
-
-    def reset(self, event):
-        self.old_x, self.old_y = None, None
+        self.first_clicked_point = None
+        self.second_clicked_point = None
 
     def asdf(self, event):
-        # print("di[a")
-        self.c.move(self.preview, 10, 0)   #  for x += 10
+        self.c.move(self.preview, 10, 0)
 
     def save(self, event, obj_lst=None):
         with open('untitled.canvas', 'w') as file:
             obj_dict = {f'{obj.type} {id}': (obj.x, obj.y) for id, obj in enumerate(obj_lst)}
             json.dump(obj_dict, file)
+
+
 if __name__ == '__main__':
     Paint()
