@@ -2,7 +2,6 @@ from tkinter import *
 from tkinter.colorchooser import askcolor
 from tkinter import filedialog as fd
 import math
-import json
 import sys
 
 from shapes.line import Line
@@ -16,15 +15,38 @@ def set_text_in_entry(entry, text):
     entry.insert(0, text)
     return
 
+def hide_second_input(self):
+    self.inputing_second_x.grid_forget()
+    self.second_x_label.grid_forget()
+    self.second_y_label.grid_forget()
+    self.inputing_second_y.grid_forget()
+
+def hide_third_input(self):
+    self.inputing_third_x.grid_forget()
+    self.third_x_label.grid_forget()
+    self.third_y_label.grid_forget()
+    self.inputing_third_y.grid_forget()
+
+def show_second_input(self):
+    self.second_x_label.grid(row=1, rowspan=2, column=11)
+    self.inputing_second_x.grid(row=2, column=11)
+    self.second_y_label.grid(row=1, rowspan=2, column=12)
+    self.inputing_second_y.grid(row=2, column=12)
+
+def show_third_input(self):
+    self.third_x_label.grid(row=2, rowspan=2, column=11)
+    self.inputing_third_x.grid(row=3, column=11)
+    self.third_y_label.grid(row=2, rowspan=2, column=12)
+    self.inputing_third_y.grid(row=3, column=12)
 
 def only_numbers_between_0_and_1000(char, whole_number):
     digit = char.isdigit()
     if not digit:
         return digit
-    return 10000 > int(whole_number) >= 0
+    return 1000 > int(whole_number) >= 0
 
 
-def select_shape(canvas, shape, shape_type):
+def select_shape(canvas, shape):
     tags = canvas.gettags(shape)
 
     if tags[0] == 'line':
@@ -52,13 +74,13 @@ def serialize(self):
     print(shapes_in_json)
     return shapes_in_json
 
-def unselect_shape(canvas, shape, shape_type, color):
+def unselect_shape(canvas, shape):
     tags = canvas.gettags(shape)
-
-    if tags[0] != 'line':
-        canvas.itemconfig(shape, outline='black')
-    else:
-        canvas.itemconfig(shape, fill=color)
+    if tags:
+        if tags[0] != 'line':
+            canvas.itemconfig(shape, outline='black')
+        else:
+            canvas.itemconfig(shape, fill='black')
 
 
 def find_closest_point(main_point_x, main_point_y, array_of_points):
@@ -81,7 +103,6 @@ def find_closest_point(main_point_x, main_point_y, array_of_points):
 
 class Paint(object):
     DEFAULT_PEN_SIZE = 5.0
-    DEFAULT_COLOR = 'black'
 
     def __init__(self):
         self.choice2 = None
@@ -89,7 +110,6 @@ class Paint(object):
         self.preview = None
         self.first_clicked_point = None
         self.second_clicked_point = None
-        self.second = False
         self.previews = []
         self.doing = None
         self.root = Tk()
@@ -106,9 +126,6 @@ class Paint(object):
         self.shape_rectangle = Button(self.root, text='rectangle', command=self.rectangle_shape)
         self.shape_rectangle.grid(row=0, column=3)
 
-        self.color_button = Button(self.root, text='color', command=self.choose_color)
-        self.color_button.grid(row=0, column=4)
-
         self.moving = Button(self.root, text='move', command=self.move)
         self.moving.grid(row=0, column=5)
 
@@ -121,8 +138,8 @@ class Paint(object):
         self.c = Canvas(self.root, bg='white', width=600, height=600)
         self.c.grid(row=1, rowspan=6, column=0, columnspan=10)
 
-        self.label = Label(self.root, text="First x")
-        self.label.grid(row=0, rowspan=2, column=11)
+        self.first_x_label = Label(self.root, text="First x")
+        self.first_x_label.grid(row=0, rowspan=2, column=11)
 
         validation = self.root.register(only_numbers_between_0_and_1000)
 
@@ -130,40 +147,35 @@ class Paint(object):
         self.inputing_first_x.insert(END, 0)
         self.inputing_first_x.grid(row=1, column=11)
 
-        self.second_label = Label(self.root, text="First y")
-        self.second_label.grid(row=0, rowspan=2, column=12)
+        self.first_y_label = Label(self.root, text="First y")
+        self.first_y_label.grid(row=0, rowspan=2, column=12)
 
         self.inputing_first_y = Entry(self.root, validate="key", validatecommand=(validation, '%S', '%P'))
         self.inputing_first_y.insert(END, 0)
         self.inputing_first_y.grid(row=1, column=12)
 
-        self.label = Label(self.root, text="Second x")
-        self.label.grid(row=1, rowspan=2, column=11)
+        self.second_x_label = Label(self.root, text="Second x")
 
         self.inputing_second_x = Entry(self.root, validate="key", validatecommand=(validation, '%S', '%P'))
         self.inputing_second_x.insert(END, 0)
-        self.inputing_second_x.grid(row=2, column=11)
 
-        self.second_label = Label(self.root, text="Second y")
-        self.second_label.grid(row=1, rowspan=2, column=12)
+        self.second_y_label = Label(self.root, text="Second y")
 
         self.inputing_second_y = Entry(self.root, validate="key", validatecommand=(validation, '%S', '%P'))
         self.inputing_second_y.insert(END, 0)
-        self.inputing_second_y.grid(row=2, column=12)
 
-        self.label = Label(self.root, text="Third x")
-        self.label.grid(row=2, rowspan=2, column=11)
+        self.third_x_label = Label(self.root, text="Third x")
 
         self.inputing_third_x = Entry(self.root, validate="key", validatecommand=(validation, '%S', '%P'))
         self.inputing_third_x.insert(END, 0)
-        self.inputing_third_x.grid(row=3, column=11)
 
-        self.second_label = Label(self.root, text="Third y")
-        self.second_label.grid(row=2, rowspan=2, column=12)
+        self.third_y_label = Label(self.root, text="Third y")
 
         self.inputing_third_y = Entry(self.root, validate="key", validatecommand=(validation, '%S', '%P'))
         self.inputing_third_y.insert(END, 0)
-        self.inputing_third_y.grid(row=3, column=12)
+
+        show_second_input(self)
+        show_third_input(self)
 
         self.saving = Button(self.root, text='Save', command=self.create_shape)
         self.saving.grid(row=2, column=13)
@@ -183,9 +195,7 @@ class Paint(object):
     def setup(self):
         self.choice = None
         self.line_width = self.choose_size_button.get()
-        self.color = self.DEFAULT_COLOR
         self.active_button = self.shape_line
-        self.c.bind('<Return>', self.asdf)
 
         self.c.bind('<Button-1>', self.paint)
         self.c.bind('<Button-3>', self.stop_preview)
@@ -196,28 +206,32 @@ class Paint(object):
         self.activate_button(self.shape_line)
         self.choice = 'line'
         self.choice2 = Line()
+        show_second_input(self)
+        hide_third_input(self)
         self.stop_preview()
 
     def circle_shape(self):
         self.activate_button(self.shape_circle)
         self.choice = 'circle'
         self.choice2 = Circle()
-        self.stop_preview()
-
-    def choose_color(self):
-        self.color = askcolor(color=self.color)[1]
+        show_second_input(self)
+        hide_third_input(self)
         self.stop_preview()
 
     def triangle_shape(self):
         self.activate_button(self.shape_triangle)
         self.choice = 'triangle'
         self.choice2 = Triangle()
+        show_second_input(self)
+        show_third_input(self)
         self.stop_preview()
 
     def rectangle_shape(self):
         self.activate_button(self.shape_rectangle)
         self.choice = 'rectangle'
         self.choice2 = Rectangle()
+        show_second_input(self)
+        hide_third_input(self)
         self.stop_preview()
 
     def activate_button(self, some_button):
@@ -228,11 +242,15 @@ class Paint(object):
     def move(self):
         self.activate_button(self.moving)
         self.choice = 'move'
+        hide_second_input(self)
+        hide_third_input(self)
         self.stop_preview()
 
     def scale(self):
         self.activate_button(self.scaling)
         self.choice = 'scale'
+        show_second_input(self)
+        hide_third_input(self)
         self.stop_preview()
 
     def create_shape(self):
@@ -261,7 +279,7 @@ class Paint(object):
                     third_point = Point(int(self.inputing_third_x.get()), int(self.inputing_third_y.get()))
                     coordinats.append(third_point.x)
                     coordinats.append(third_point.y)
-                self.shapes.append(self.choice2.create(self.c, coordinats, fill=self.color, width=self.line_width))
+                self.shapes.append(self.choice2.create(self.c, coordinats, width=self.line_width))
 
     def open_file(self):
         print(serialize(self))
@@ -270,7 +288,6 @@ class Paint(object):
         if filename:
             with open(filename, "r", -1, "utf-8") as file:
                 deserialize(self, file.read())
-                # file.read(serialize(self))
 
 
     def save_file(self):
@@ -288,7 +305,7 @@ class Paint(object):
                 self.first_clicked_point = Point(event.x, event.y)
             else:
                 self.shapes.append(self.choice2.create(self.c, [self.first_clicked_point.x, self.first_clicked_point.y,
-                                                       event.x, event.y], fill=self.color, width=self.line_width))
+                                                       event.x, event.y], width=self.line_width))
                 self.first_clicked_point = None
         if self.choice == 'triangle':
             if not self.first_clicked_point:
@@ -297,12 +314,12 @@ class Paint(object):
                 self.second_clicked_point = Point(event.x, event.y)
                 self.doing = self.c.create_line(self.first_clicked_point.x, self.first_clicked_point.y,
                                                 self.second_clicked_point.x, self.second_clicked_point.y,
-                                                width=self.line_width, fill=self.color, capstyle=ROUND, smooth=TRUE,
+                                                width=self.line_width, capstyle=ROUND, smooth=TRUE,
                                                 splinesteps=36)
             else:
                 self.shapes.append(self.c.create_polygon(self.first_clicked_point.x, self.first_clicked_point.y,
                                                          self.second_clicked_point.x, self.second_clicked_point.y,
-                                                         event.x, event.y, tags='triangle', fill=self.color))
+                                                         event.x, event.y, tags='triangle'))
                 self.second_clicked_point = None
                 self.first_clicked_point = None
 
@@ -316,15 +333,15 @@ class Paint(object):
         self.selected = self.c.find_overlapping(event.x - 10, event.y - 10, event.x + 10, event.y + 10)
         if self.selected:
             if self.c.selected:
-                unselect_shape(self.c, self.c.selected, self.choice2, self.color)
+                unselect_shape(self.c, self.c.selected)
                 self.c.selected = None
             self.c.selected = self.selected[-1]
-            select_shape(self.c, self.c.selected, self.choice2)
+            select_shape(self.c, self.c.selected)
 
             self.c.startxy = (event.x, event.y)
         else:
             if self.c.selected:
-                unselect_shape(self.c, self.c.selected, self.choice2, self.color)
+                unselect_shape(self.c, self.c.selected)
                 self.c.selected = None
 
     def on_drag(self, event):
@@ -361,29 +378,14 @@ class Paint(object):
                     self.c.delete(self.doing)
             if self.first_clicked_point:
                 self.previews.append(Line().create(self.c, self.first_clicked_point.x,
-                                                   self.first_clicked_point.y, event.x, event.y, fill=self.color))
+                                                   self.first_clicked_point.y, event.x, event.y))
             if self.second_clicked_point:
                 self.previews.append(Line().create(self.c, self.second_clicked_point.x, self.second_clicked_point.y,
-                                                   event.x, event.y, fill=self.color))
-        # elif self.choice == 'move':
-            # print("ruszanko")
-            # if self.c.selected:
-            #     coords = self.c.coords(self.c.selected)
-            #     print("less go")
-            #     print("koordynaty", coords)
-            #     print("probka", coords[0])
-            #     print("probka w intcie", int(coords[0]))
-            #     set_text_in_entry(self.inputing_first_x, int(coords[0]))
-            #     set_text_in_entry(self.inputing_first_y, int(coords[1]))
-            #     set_text_in_entry(self.inputing_second_x, int(coords[2]))
-            #     set_text_in_entry(self.inputing_second_y, int(coords[3]))
-            #     if len(coords) == 6:
-            #         set_text_in_entry(self.inputing_third_x, int(coords[4]))
-            #         set_text_in_entry(self.inputing_third_y, int(coords[5]))
+                                                   event.x, event.y))
         else:
             if self.first_clicked_point:
                 self.previews.append(self.choice2.create(self.c, [self.first_clicked_point.x, self.first_clicked_point.y,
-                                                         event.x, event.y], fill=self.color))
+                                                         event.x, event.y]))
 
         self.c.focus_set()
 
@@ -393,9 +395,6 @@ class Paint(object):
         self.c.delete(self.doing)
         self.first_clicked_point = None
         self.second_clicked_point = None
-
-    def asdf(self, event):
-        self.c.move(self.preview, 10, 0)
 
 if __name__ == '__main__':
     Paint()
