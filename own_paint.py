@@ -43,7 +43,9 @@ def only_numbers_between_0_and_1000(char, whole_number):
     digit = char.isdigit()
     if not digit:
         return digit
-    return 1000 > int(whole_number) >= 0
+    if whole_number == '':
+        whole_number = 0
+    return 10000 > int(whole_number) >= -10000
 
 
 def select_shape(canvas, shape):
@@ -60,25 +62,28 @@ def deserialize(self, file_inside):
     self.shapes.clear()
 
     array_full_of_shapes = eval(file_inside)
-    print(array_full_of_shapes)
 
     for shape in array_full_of_shapes:
+        print('deserializacja', list(list(shape.values())[0]))
         type_of_shape = list(shape.keys())[0]
         shape_object = eval(f"{type_of_shape.capitalize()}()")
-        self.shapes.append(shape_object.create(self.c, list(list(shape.values())[0])))
+        if shape_object.type == 'circle':
+            self.shapes.append(shape_object.create_after_serialize(self.c, list(list(shape.values())[0])))
+        else:
+            self.shapes.append(shape_object.create(self.c, list(list(shape.values())[0])))
 
 def serialize(self):
     shapes_in_json = []
     for f in self.shapes:
+        print('serializacja', self.c.coords(f))
         shapes_in_json.append({ self.c.gettags(f)[0]: self.c.coords(f)})
-    print(shapes_in_json)
     return shapes_in_json
 
 def unselect_shape(canvas, shape):
     tags = canvas.gettags(shape)
     if tags:
         if tags[0] != 'line':
-            canvas.itemconfig(shape, outline='black')
+            canvas.itemconfig(shape, outline='black', width=1)
         else:
             canvas.itemconfig(shape, fill='black')
 
@@ -282,7 +287,6 @@ class Paint(object):
                 self.shapes.append(self.choice2.create(self.c, coordinats, width=self.line_width))
 
     def open_file(self):
-        print(serialize(self))
 
         filename = fd.askopenfilename(filetypes=[("Plik tekstowy", "*.canvas")])
         if filename:
@@ -292,7 +296,6 @@ class Paint(object):
 
     def save_file(self):
         filename = fd.asksaveasfilename(filetypes=[("Plik tekstowy", "*.canvas")], defaultextension="*.canvas")
-        print(serialize(self))
         if filename:
             with open(filename, "w", -1, "utf-8") as file:
                 file.write(repr(serialize(self)))

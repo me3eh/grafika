@@ -1,0 +1,1 @@
+Potrzebna biblioteka Tkinter oraz Python.
